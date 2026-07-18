@@ -41,13 +41,20 @@ fn write_chunk(chunk: &mut Chunk, byte: u8, line: usize) {
     chunk.lines.push(line as u8);
 }
 
+fn get_line(chunk: &Chunk, offset: usize) -> usize {
+    chunk.lines[offset] as usize
+}
+
 fn disassemble_chunk(chunk: &Chunk, name: &str) {
     println!("== {} ==", name);
 
     let mut offset = 0;
     while offset < chunk.code.len() {
         let byte = chunk.code[offset];
-        let line = chunk.lines[offset];
+        // NOTE: the book checks if the line is the same as
+        // previous and print ` |` instead
+        // we don't need to do that for now
+        let line = get_line(chunk, offset);
         print!("{:04} {:4} ", offset, line);
         match OpCode::try_from(byte) {
             Ok(OpCode::Constant) => {
