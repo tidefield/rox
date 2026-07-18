@@ -1,5 +1,8 @@
 struct Chunk {
-    lines: Vec<u8>,
+    // (usize, u8) is a tuple of (offset, line)
+    // where `offset` is the first index of the instruction (aka code)
+    // that is on the line `line`
+    line_tuples: Vec<(usize, u8)>,
     code: Vec<u8>,
     constants: Vec<f64>,
 }
@@ -38,11 +41,55 @@ fn add_constant(chunk: &mut Chunk, value: f64) -> usize {
 
 fn write_chunk(chunk: &mut Chunk, byte: u8, line: usize) {
     chunk.code.push(byte);
-    chunk.lines.push(line as u8);
+
+    // Given the follow instruction sequence:
+    // offset: 0  1  2  3  4  5
+    // code   [ ][ ][ ][ ][ ][ ]
+    // line    1  1  1  2  2  3
+    // We want to store
+    // (0, 1), (3, 2), (5, 3)
+    // NOTE: The book uses a different approach to store line information, but this is more
+    // efficient for our use case
+    // Invariant: line_tuples is always sorted by offset, and the last tuple's line is always
+    // less than or equal to the current line
+    let last_tuple = chunk.line_tuples.last();
+    match last_tuple {
+        Some((last_offset, last_line)) if *last_line == line as u8 => {
+            // do nothing, the last tuple already has the same line
+        }
+        _ => {
+            chunk.line_tuples.push((chunk.code.len() - 1, line as u8));
+        }
+    }
 }
 
+// Peform binary search to find the line number for a given offset
 fn get_line(chunk: &Chunk, offset: usize) -> usize {
-    chunk.lines[offset] as usize
+    let mut left = 0;
+    let mut right = chunk.line_tuples.len() - 1;
+
+    while left <= right {
+        let mid = (left + right) / 2;
+        let (mid_offset, mid_line) = chunk.line_tuples[mid];
+
+        if offset < mid_offset {
+            if mid == 0 {
+                break; // Prevent underflow
+            }
+            right = mid - 1;
+        } else if offset > mid_offset {
+            left = mid + 1;
+        } else {
+            return mid_line as usize;
+        }
+    }
+
+    // At this point, we have
+    // offsets: [below offset] [above offset]
+    //                   right  left
+    // line_tuples[right].0 < offset
+    // line_tuples[left].0 > offset
+    return chunk.line_tuples[right].1 as usize;
 }
 
 fn disassemble_chunk(chunk: &Chunk, name: &str) {
@@ -77,7 +124,7 @@ fn disassemble_chunk(chunk: &Chunk, name: &str) {
 
 fn main() {
     let mut chunk = Chunk {
-        lines: Vec::with_capacity(8),
+        line_tuples: Vec::with_capacity(8),
         code: Vec::with_capacity(8),
         constants: Vec::with_capacity(8),
     };
@@ -86,8 +133,17 @@ fn main() {
     write_chunk(&mut chunk, OpCode::Constant as u8, 123);
     // TODO: this will panic when constant is greater than 255
     write_chunk(&mut chunk, constant as u8, 123);
-
     write_chunk(&mut chunk, OpCode::Return as u8, 123);
+
+    write_chunk(&mut chunk, OpCode::Constant as u8, 124);
+    write_chunk(&mut chunk, constant as u8, 124);
+    write_chunk(&mut chunk, OpCode::Constant as u8, 124);
+    write_chunk(&mut chunk, constant as u8, 124);
+
+    write_chunk(&mut chunk, OpCode::Constant as u8, 125);
+    write_chunk(&mut chunk, constant as u8, 125);
+
+    println!("chunk.line_tuples: {:?}", chunk.line_tuples);
 
     disassemble_chunk(&chunk, "test chunk");
 }
