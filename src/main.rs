@@ -1,6 +1,4 @@
 struct Chunk {
-    count: usize,
-    capacity: usize,
     code: Vec<u8>,
     constants: Vec<f64>,
 }
@@ -67,8 +65,6 @@ fn disassemble_chunk(chunk: &Chunk, name: &str) {
 
 fn main() {
     let mut chunk = Chunk {
-        count: 0,
-        capacity: 8,
         code: Vec::with_capacity(8),
         constants: Vec::with_capacity(8),
     };
