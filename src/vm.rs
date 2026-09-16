@@ -61,7 +61,7 @@ pub enum InterpretResult {
     RUNTIME_ERROR,
 }
 
-pub fn interpret(source: String) -> InterpretResult {
+pub fn interpret(source: &str) -> InterpretResult {
     compile(source);
     return InterpretResult::OK;
     // loop {

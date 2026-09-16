@@ -1,7 +1,9 @@
 use crate::scanner::{Scanner, Token, TokenType};
 
-pub fn compile(source: String) {
-    let mut scanner = Scanner::new(source);
+// `'s` is the lifetime of the borrowed input. The scanner cannot outlive
+// this borrow, so `source` must remain valid while the scanner is in use.
+pub fn compile<'s>(source: &'s str) {
+    let mut scanner: Scanner<'s> = Scanner::new(source);
     let mut line: usize = 0;
     // Scan tokens until EOF
     loop {

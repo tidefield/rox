@@ -12,7 +12,7 @@ fn repl() {
     loop {
         io::stdin().read_line(&mut buffer).unwrap();
     }
-    interpret(buffer);
+    interpret(&buffer);
 }
 
 fn main() {
