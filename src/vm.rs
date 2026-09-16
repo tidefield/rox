@@ -2,6 +2,9 @@
 // Add VM execution/state logic here when you’re ready to continue.
 
 // mod cchunk;
+
+use rox::compiler::compile;
+
 use crate::chunk::{Chunk, OpCode, Value};
 
 pub struct VM {
@@ -58,39 +61,41 @@ pub enum InterpretResult {
     RUNTIME_ERROR,
 }
 
-pub fn interpret(vm: &mut VM) -> InterpretResult {
-    loop {
-        let (instruction, _offset) = read_byte!(vm);
-        match OpCode::try_from(instruction) {
-            Ok(opcode) => match opcode {
-                OpCode::Constant => {
-                    let constant = read_constant!(vm);
-                    vm.stack.push(*constant);
-                }
-                OpCode::Return => {
-                    println!("{:?}", vm.stack.pop());
-                    return InterpretResult::OK;
-                }
-                OpCode::Negate => {
-                    let value = vm.stack.last_mut().unwrap();
-                    *value = -*value;
-                }
-                OpCode::Add => {
-                    binary_op!(vm, +);
-                }
-                OpCode::Subtract => {
-                    binary_op!(vm, -);
-                }
-                OpCode::Multiply => {
-                    binary_op!(vm, *);
-                }
-                OpCode::Divide => {
-                    binary_op!(vm, /);
-                }
-            },
-            Err(_) => {
-                unimplemented!()
-            }
-        }
-    }
+pub fn interpret(source: String) -> InterpretResult {
+    compile(source);
+    return InterpretResult::OK;
+    // loop {
+    //     let (instruction, _offset) = read_byte!(vm);
+    //     match OpCode::try_from(instruction) {
+    //         Ok(opcode) => match opcode {
+    //             OpCode::Constant => {
+    //                 let constant = read_constant!(vm);
+    //                 vm.stack.push(*constant);
+    //             }
+    //             OpCode::Return => {
+    //                 println!("{:?}", vm.stack.pop());
+    //                 return InterpretResult::OK;
+    //             }
+    //             OpCode::Negate => {
+    //                 let value = vm.stack.last_mut().unwrap();
+    //                 *value = -*value;
+    //             }
+    //             OpCode::Add => {
+    //                 binary_op!(vm, +);
+    //             }
+    //             OpCode::Subtract => {
+    //                 binary_op!(vm, -);
+    //             }
+    //             OpCode::Multiply => {
+    //                 binary_op!(vm, *);
+    //             }
+    //             OpCode::Divide => {
+    //                 binary_op!(vm, /);
+    //             }
+    //         },
+    //         Err(_) => {
+    //             unimplemented!()
+    //         }
+    //     }
+    // }
 }
