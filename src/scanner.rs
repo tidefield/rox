@@ -3,7 +3,7 @@ pub struct Scanner<'s> {
     current: usize,
     line: usize,
     // This remains valid for as long as the scanner exists.
-    source: &'s str,
+    source: &'s [u8],
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -74,7 +74,7 @@ impl<'s> Scanner<'s> {
             start: 0,
             current: 0,
             line: 1,
-            source,
+            source: source.as_bytes(),
         }
     }
 
@@ -100,13 +100,13 @@ impl<'s> Scanner<'s> {
         }
     }
 
-    pub fn advance(&mut self) -> char {
-        let character = self.peek().expect("advance called at end of input");
-        self.current += character.len_utf8();
-        character
+    pub fn advance(&mut self) -> u8 {
+        let byte = self.peek().expect("advance called at end of input");
+        self.current += 1;
+        byte
     }
 
-    pub fn match_character(&mut self, expected: char) -> bool {
+    pub fn match_character(&mut self, expected: u8) -> bool {
         if self.is_at_end() {
             return false;
         }
@@ -119,15 +119,13 @@ impl<'s> Scanner<'s> {
         true
     }
 
-    pub fn peek(&self) -> Option<char> {
-        self.source
-            .get(self.current..)
-            .and_then(|remaining| remaining.chars().next())
+    pub fn peek(&self) -> Option<u8> {
+        self.source.get(self.current).copied()
     }
 
     pub fn skip_whitespace(&mut self) {
-        while let Some(character) = self.peek() {
-            if !character.is_whitespace() {
+        while let Some(byte) = self.peek() {
+            if !byte.is_ascii_whitespace() {
                 break;
             }
             self.advance();
@@ -135,7 +133,7 @@ impl<'s> Scanner<'s> {
     }
 
     pub fn string(&mut self) -> Token {
-        while !self.is_at_end() && self.peek() != Some('"') {
+        while !self.is_at_end() && self.peek() != Some(b'"') {
             self.advance();
         }
 
@@ -148,56 +146,50 @@ impl<'s> Scanner<'s> {
     }
 
     pub fn number(&mut self) -> Token {
-        while matches!(self.peek(), Some(character) if character.is_digit(10)) {
+        while matches!(self.peek(), Some(byte) if byte.is_ascii_digit()) {
             self.advance();
         }
         // look for fractional part
-        if self.peek() == Some('.') {
+        if self.peek() == Some(b'.') {
             self.advance();
-            while matches!(self.peek(), Some(character) if character.is_digit(10)) {
+            while matches!(self.peek(), Some(byte) if byte.is_ascii_digit()) {
                 self.advance();
             }
         }
         self.make_token(TokenType::Number)
     }
 
-    fn lexeme_is(&self, expected: &str) -> bool {
+    fn lexeme_is(&self, expected: &[u8]) -> bool {
         self.source.get(self.start..self.current) == Some(expected)
     }
 
     pub fn identifier_type(&self) -> TokenType {
-        let lexeme = self.source.get(self.start..self.current).unwrap_or("");
+        let first = self.source.get(self.start).copied();
 
-        match lexeme.chars().next() {
-            Some('a') if self.lexeme_is("and") => TokenType::And,
-            Some('c') if self.lexeme_is("class") => TokenType::Class,
-            Some('e') if self.lexeme_is("else") => TokenType::Else,
-            Some('f') => match lexeme {
-                "false" => TokenType::False,
-                "for" => TokenType::For,
-                "fun" => TokenType::Fun,
-                _ => TokenType::Identifier,
-            },
-            Some('i') if self.lexeme_is("if") => TokenType::If,
-            Some('n') if self.lexeme_is("nil") => TokenType::Nil,
-            Some('o') if self.lexeme_is("or") => TokenType::Or,
-            Some('p') if self.lexeme_is("print") => TokenType::Print,
-            Some('r') if self.lexeme_is("return") => TokenType::Return,
-            Some('s') if self.lexeme_is("super") => TokenType::Super,
-            Some('t') => match lexeme {
-                "this" => TokenType::This,
-                "true" => TokenType::True,
-                _ => TokenType::Identifier,
-            },
-            Some('v') if self.lexeme_is("var") => TokenType::Var,
-            Some('w') if self.lexeme_is("while") => TokenType::While,
+        match first {
+            Some(b'a') if self.lexeme_is(b"and") => TokenType::And,
+            Some(b'c') if self.lexeme_is(b"class") => TokenType::Class,
+            Some(b'e') if self.lexeme_is(b"else") => TokenType::Else,
+            Some(b'f') if self.lexeme_is(b"false") => TokenType::False,
+            Some(b'f') if self.lexeme_is(b"for") => TokenType::For,
+            Some(b'f') if self.lexeme_is(b"fun") => TokenType::Fun,
+            Some(b'i') if self.lexeme_is(b"if") => TokenType::If,
+            Some(b'n') if self.lexeme_is(b"nil") => TokenType::Nil,
+            Some(b'o') if self.lexeme_is(b"or") => TokenType::Or,
+            Some(b'p') if self.lexeme_is(b"print") => TokenType::Print,
+            Some(b'r') if self.lexeme_is(b"return") => TokenType::Return,
+            Some(b's') if self.lexeme_is(b"super") => TokenType::Super,
+            Some(b't') if self.lexeme_is(b"this") => TokenType::This,
+            Some(b't') if self.lexeme_is(b"true") => TokenType::True,
+            Some(b'v') if self.lexeme_is(b"var") => TokenType::Var,
+            Some(b'w') if self.lexeme_is(b"while") => TokenType::While,
             _ => TokenType::Identifier,
         }
     }
 
     pub fn identifier(&mut self) -> Token {
-        while let Some(character) = self.peek() {
-            if !character.is_alphanumeric() {
+        while let Some(byte) = self.peek() {
+            if !byte.is_ascii_alphanumeric() {
                 break;
             }
             self.advance();
@@ -213,65 +205,65 @@ impl<'s> Scanner<'s> {
             if self.is_at_end() {
                 return self.make_token(TokenType::EOF);
             }
-            let character = self.advance();
+            let byte = self.advance();
 
-            if character.is_digit(10) {
+            if byte.is_ascii_digit() {
                 return self.number();
             }
 
-            if character.is_alphabetic() {
+            if byte.is_ascii_alphabetic() {
                 return self.identifier();
             }
 
-            let token = match character {
-                '(' => self.make_token(TokenType::LeftParen),
-                ')' => self.make_token(TokenType::RightParen),
-                '{' => self.make_token(TokenType::LeftBrace),
-                '}' => self.make_token(TokenType::RightBrace),
-                ',' => self.make_token(TokenType::Comma),
-                '.' => self.make_token(TokenType::Dot),
-                '-' => self.make_token(TokenType::Minus),
-                '+' => self.make_token(TokenType::Plus),
-                ';' => self.make_token(TokenType::Semicolon),
-                '/' => {
-                    if self.match_character('/') {
-                        while !self.is_at_end() && self.peek() != Some('\n') {
+            let token = match byte {
+                b'(' => self.make_token(TokenType::LeftParen),
+                b')' => self.make_token(TokenType::RightParen),
+                b'{' => self.make_token(TokenType::LeftBrace),
+                b'}' => self.make_token(TokenType::RightBrace),
+                b',' => self.make_token(TokenType::Comma),
+                b'.' => self.make_token(TokenType::Dot),
+                b'-' => self.make_token(TokenType::Minus),
+                b'+' => self.make_token(TokenType::Plus),
+                b';' => self.make_token(TokenType::Semicolon),
+                b'/' => {
+                    if self.match_character(b'/') {
+                        while !self.is_at_end() && self.peek() != Some(b'\n') {
                             self.advance();
                         }
                         continue;
                     }
                     self.make_token(TokenType::Slash)
                 }
-                '*' => self.make_token(TokenType::Star),
-                '!' => {
-                    if self.match_character('=') {
+                b'*' => self.make_token(TokenType::Star),
+                b'!' => {
+                    if self.match_character(b'=') {
                         self.make_token(TokenType::BangEqual)
                     } else {
                         self.make_token(TokenType::Bang)
                     }
                 }
-                '=' => {
-                    if self.match_character('=') {
+                b'=' => {
+                    if self.match_character(b'=') {
                         self.make_token(TokenType::EqualEqual)
                     } else {
                         self.make_token(TokenType::Equal)
                     }
                 }
-                '<' => {
-                    if self.match_character('=') {
+                b'<' => {
+                    if self.match_character(b'=') {
                         self.make_token(TokenType::LessEqual)
                     } else {
                         self.make_token(TokenType::Less)
                     }
                 }
-                '>' => {
-                    if self.match_character('=') {
+                b'>' => {
+                    if self.match_character(b'=') {
                         self.make_token(TokenType::GreaterEqual)
                     } else {
                         self.make_token(TokenType::Greater)
                     }
                 }
-                '"' => self.string(),
+                b'"' => self.string(),
                 _ => self.error_token("Unexpected character".to_string()),
             };
 
@@ -348,26 +340,12 @@ mod tests {
     }
 
     #[test]
-    fn scans_unicode_identifiers_with_byte_offsets() {
-        let source = "é + 中";
+    fn rejects_non_ascii_input() {
+        let source = "é";
         let mut scanner = Scanner::new(source);
 
-        let identifier = scanner.scan_token();
-        assert_eq!(identifier.kind, TokenType::Identifier);
-        assert_eq!(
-            &source[identifier.start..identifier.start + identifier.length],
-            "é"
-        );
-        assert_eq!(identifier.length, "é".len());
-
-        let plus = scanner.scan_token();
-        assert_eq!(plus.kind, TokenType::Plus);
-
-        let second_identifier = scanner.scan_token();
-        assert_eq!(second_identifier.kind, TokenType::Identifier);
-        assert_eq!(
-            &source[second_identifier.start..second_identifier.start + second_identifier.length],
-            "中"
-        );
+        assert_eq!(scanner.scan_token().kind, TokenType::Error);
+        assert_eq!(scanner.scan_token().kind, TokenType::Error);
+        assert_eq!(scanner.scan_token().kind, TokenType::EOF);
     }
 }
