@@ -10,6 +10,12 @@ pub struct Chunk {
     pub constants: Vec<Value>,
 }
 
+impl Chunk {
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
 // Guarantee the enum is only one byte in memory
 // as long as we have less than 256 opcodes (aka variants)
 #[repr(u8)]

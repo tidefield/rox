@@ -1,18 +1,15 @@
-mod chunk;
-mod vm;
+use rox::vm::interpret;
 
-use chunk::{Chunk, OpCode, add_constant, write_chunk};
-
-use vm::{init_vm, interpret};
-
-use std::io;
+use std::{env, io};
 
 fn repl() {
-    let mut buffer = String::new();
     loop {
-        io::stdin().read_line(&mut buffer).unwrap();
+        let mut buffer = String::new();
+        if io::stdin().read_line(&mut buffer).unwrap() == 0 {
+            break;
+        }
+        interpret(&buffer);
     }
-    interpret(&buffer);
 }
 
 fn main() {
@@ -34,6 +31,10 @@ fn main() {
     // write_chunk(&mut chunk, OpCode::Return as u8, 123);
 
     // let mut vm = init_vm(chunk);
-    repl();
+    if let Some(source) = env::args().nth(1) {
+        interpret(&source);
+    } else {
+        repl();
+    }
     // interpret(&mut vm);
 }

@@ -3,9 +3,8 @@
 
 // mod cchunk;
 
-use rox::compiler::compile;
-
 use crate::chunk::{Chunk, OpCode, Value};
+use crate::compiler::compile;
 
 pub struct VM {
     pub chunk: Chunk,
@@ -30,6 +29,8 @@ pub fn init_vm(chunk: Chunk) -> VM {
     VM::new(chunk)
 }
 
+// These macros are used by the VM dispatch loop when execution is enabled.
+#[allow(unused_macros)]
 macro_rules! read_byte {
     ($vm:expr) => {{
         let offset = $vm.ip;
@@ -39,6 +40,7 @@ macro_rules! read_byte {
     }};
 }
 
+#[allow(unused_macros)]
 macro_rules! read_constant {
     ($vm:expr) => {{
         let (value_index, _offset) = read_byte!($vm);
@@ -47,6 +49,7 @@ macro_rules! read_constant {
     }};
 }
 
+#[allow(unused_macros)]
 macro_rules! binary_op {
     ($vm:expr, $op:tt) => {{
         let b = $vm.stack.pop().unwrap();
@@ -56,46 +59,55 @@ macro_rules! binary_op {
 }
 
 pub enum InterpretResult {
-    OK,
-    COMPILE_ERROR,
-    RUNTIME_ERROR,
+    Ok,
+    CompileError,
+    RuntimeError,
 }
 
 pub fn interpret(source: &str) -> InterpretResult {
-    compile(source);
-    return InterpretResult::OK;
-    // loop {
-    //     let (instruction, _offset) = read_byte!(vm);
-    //     match OpCode::try_from(instruction) {
-    //         Ok(opcode) => match opcode {
-    //             OpCode::Constant => {
-    //                 let constant = read_constant!(vm);
-    //                 vm.stack.push(*constant);
-    //             }
-    //             OpCode::Return => {
-    //                 println!("{:?}", vm.stack.pop());
-    //                 return InterpretResult::OK;
-    //             }
-    //             OpCode::Negate => {
-    //                 let value = vm.stack.last_mut().unwrap();
-    //                 *value = -*value;
-    //             }
-    //             OpCode::Add => {
-    //                 binary_op!(vm, +);
-    //             }
-    //             OpCode::Subtract => {
-    //                 binary_op!(vm, -);
-    //             }
-    //             OpCode::Multiply => {
-    //                 binary_op!(vm, *);
-    //             }
-    //             OpCode::Divide => {
-    //                 binary_op!(vm, /);
-    //             }
-    //         },
-    //         Err(_) => {
-    //             unimplemented!()
-    //         }
-    //     }
-    // }
+    let chunk = match compile(source) {
+        Some(chunk) => chunk,
+        None => return InterpretResult::CompileError,
+    };
+    let mut vm = VM::new(chunk);
+
+    #[cfg(debug_assertions)]
+    crate::chunk::disassemble_chunk(&vm.chunk, "code");
+
+    // InterpretResult::Ok
+
+    loop {
+        let (instruction, _offset) = read_byte!(vm);
+        match OpCode::try_from(instruction) {
+            Ok(opcode) => match opcode {
+                OpCode::Constant => {
+                    let constant = read_constant!(vm);
+                    vm.stack.push(*constant);
+                }
+                OpCode::Return => {
+                    println!("{:?}", vm.stack.pop());
+                    return InterpretResult::Ok;
+                }
+                OpCode::Negate => {
+                    let value = vm.stack.last_mut().unwrap();
+                    *value = -*value;
+                }
+                OpCode::Add => {
+                    binary_op!(vm, +);
+                }
+                OpCode::Subtract => {
+                    binary_op!(vm, -);
+                }
+                OpCode::Multiply => {
+                    binary_op!(vm, *);
+                }
+                OpCode::Divide => {
+                    binary_op!(vm, /);
+                }
+            },
+            Err(_) => {
+                unimplemented!()
+            }
+        }
+    }
 }

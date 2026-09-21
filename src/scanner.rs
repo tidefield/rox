@@ -6,7 +6,7 @@ pub struct Scanner<'s> {
     source: &'s [u8],
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum TokenType {
     // Single-character tokens.
     LeftParen,
@@ -30,7 +30,6 @@ pub enum TokenType {
     GreaterEqual,
     Less,
     LessEqual,
-
     // Literals.
     Identifier,
     String,
@@ -55,9 +54,11 @@ pub enum TokenType {
     While,
 
     Error,
+    #[default]
     EOF,
 }
 
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct Token {
     pub kind: TokenType,
     // pub text: String,
